@@ -13,6 +13,7 @@ Explore global COVID-19 data interactively with vxrachit, a dashboard built usin
 ## Useful Links
 
 - Try in Colab: https://colab.research.google.com/drive/1aPnOTwyBHD8o00i0fJ2WGQl64wj67Kis?usp=sharing
+- Live Streamlit App: https://covid-dashboard-vxrachit.streamlit.app/
 
 
 ## Visual Previews
