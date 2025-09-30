@@ -4,6 +4,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import plotly.express as px
+import plotly.io as pio
 from streamlit.components.v1 import html
 import folium
 from folium.plugins import MiniMap, Fullscreen, MousePosition, Search, MeasureControl
@@ -12,6 +13,24 @@ import pycountry
 import math
 
 DATA_PATH = "https://files.vxrachit.is-a.dev/datasets/country_wise_latest.csv"
+
+CUSTOM_COLORS = [
+    "#1f77b4",
+    "#ff7f0e",
+    "#2ca02c",
+    "#d62728",
+    "#9467bd",
+    "#8c564b",
+    "#e377c2",
+    "#7f7f7f",
+    "#bcbd22",
+    "#17becf"
+]
+
+sns.set_palette(CUSTOM_COLORS)
+plt.rcParams["axes.prop_cycle"] = plt.cycler(color=CUSTOM_COLORS)
+pio.templates.default = "plotly_white"
+px.defaults.color_discrete_sequence = CUSTOM_COLORS
 
 @st.cache_data
 def load_data():
@@ -32,11 +51,19 @@ def prepare_data(df):
             if converted.notna().sum() > 0:
                 df[col] = converted
     if "Recovered / 100 Cases" in df.columns:
-        df["Vaccination Status"] = pd.cut(df["Recovered / 100 Cases"], bins=[-np.inf, 40, 70, np.inf], labels=["Low", "Moderate", "High"]).astype(str)
+        df["Vaccination Status"] = pd.cut(
+            df["Recovered / 100 Cases"],
+            bins=[-np.inf, 40, 70, np.inf],
+            labels=["Low", "Moderate", "High"]
+        ).astype(str)
     else:
         df["Vaccination Status"] = "Not Reported"
     if "Confirmed" in df.columns and "Deaths" in df.columns:
-        df["Case Fatality Rate"] = np.where(df["Confirmed"] > 0, df["Deaths"] / df["Confirmed"] * 100, 0)
+        df["Case Fatality Rate"] = np.where(
+            df["Confirmed"] > 0,
+            df["Deaths"] / df["Confirmed"] * 100,
+            0
+        )
     numeric_columns = df.select_dtypes(include=[np.number]).columns
     df[numeric_columns] = df[numeric_columns].apply(pd.to_numeric, errors="coerce")
     return df
@@ -126,8 +153,6 @@ def render_seaborn_plots(df):
         region_summary = df.groupby("WHO Region", as_index=False)["Confirmed"].sum().sort_values("Confirmed", ascending=False)
         fig, ax = plt.subplots(figsize=(10, 6))
         sns.barplot(data=region_summary, x="Confirmed", y="WHO Region", ax=ax)
-        ax.set_xlabel("Confirmed Cases")
-        ax.set_ylabel("WHO Region")
         st.pyplot(fig)
         plt.close(fig)
     numeric_df = df.select_dtypes(include=[np.number])
@@ -142,8 +167,6 @@ def render_seaborn_plots(df):
         if not subset.empty:
             fig, ax = plt.subplots(figsize=(10, 6))
             sns.boxplot(data=subset, x="Case Fatality Rate", y="WHO Region", ax=ax)
-            ax.set_xlabel("Case Fatality Rate (%)")
-            ax.set_ylabel("WHO Region")
             st.pyplot(fig)
             plt.close(fig)
     if "Vaccination Status" in df.columns:
@@ -151,8 +174,6 @@ def render_seaborn_plots(df):
         status_counts.columns = ["Vaccination Status", "Count"]
         fig, ax = plt.subplots(figsize=(8, 5))
         sns.barplot(data=status_counts, x="Vaccination Status", y="Count", ax=ax)
-        ax.set_xlabel("Vaccination Status")
-        ax.set_ylabel("Countries")
         st.pyplot(fig)
         plt.close(fig)
 
@@ -165,9 +186,9 @@ def render_matplotlib_plots(df):
             positions = np.arange(len(selection))
             width = 0.25
             fig, ax = plt.subplots(figsize=(12, 6))
-            ax.bar(positions - width, selection["Active"], width=width, label="Active", color="#1f77b4")
-            ax.bar(positions, selection["Recovered"], width=width, label="Recovered", color="#2ca02c")
-            ax.bar(positions + width, selection["Deaths"], width=width, label="Deaths", color="#d62728")
+            ax.bar(positions - width, selection["Active"], width=width, label="Active")
+            ax.bar(positions, selection["Recovered"], width=width, label="Recovered")
+            ax.bar(positions + width, selection["Deaths"], width=width, label="Deaths")
             ax.set_xticks(positions)
             ax.set_xticklabels(selection.index, rotation=45, ha="right")
             ax.set_ylabel("People")
@@ -179,7 +200,7 @@ def render_matplotlib_plots(df):
         change = df.dropna(subset=["1 week change"]).nlargest(10, "1 week change")
         if not change.empty:
             fig, ax = plt.subplots(figsize=(10, 6))
-            ax.barh(change["Country"], change["1 week change"], color="#ff7f0e")
+            ax.barh(change["Country"], change["1 week change"])
             ax.set_xlabel("New Cases Compared to Last Week")
             ax.set_title("Largest Weekly Case Growth")
             st.pyplot(fig)
@@ -189,15 +210,15 @@ def render_plotly_charts(df):
     if {"Confirmed last week", "Confirmed", "Country"}.issubset(df.columns):
         line_df = df.sort_values("Confirmed last week")
         fig = px.line(line_df, x="Confirmed last week", y="Confirmed", color="Country", markers=True, title="Confirmed vs Confirmed Last Week")
-    st.plotly_chart(fig, config={"responsive": True})
+        st.plotly_chart(fig, config={"responsive": True})
     if {"Confirmed", "Deaths", "Recovered", "Country", "WHO Region"}.issubset(df.columns):
         fig = px.scatter(df, x="Confirmed", y="Deaths", size="Recovered", color="WHO Region", hover_name="Country", title="Deaths vs Confirmed with Recovery Size", size_max=40)
-    st.plotly_chart(fig, config={"responsive": True})
+        st.plotly_chart(fig, config={"responsive": True})
     if {"WHO Region", "Confirmed", "Deaths", "Recovered"}.issubset(df.columns):
         region_totals = df.groupby("WHO Region", as_index=False)[["Confirmed", "Deaths", "Recovered"]].sum()
         fig = px.treemap(region_totals, path=["WHO Region"], values="Confirmed", color="Deaths", color_continuous_scale="Reds", hover_data={"Recovered": True})
         fig.update_traces(textinfo="label+value")
-    st.plotly_chart(fig, config={"responsive": True})
+        st.plotly_chart(fig, config={"responsive": True})
     if {"Country", "New cases"}.issubset(df.columns):
         top_new = df.dropna(subset=["New cases"]).nlargest(10, "New cases")
         if not top_new.empty:
@@ -207,7 +228,7 @@ def render_plotly_charts(df):
     if {"Confirmed", "Active", "Recovered", "Deaths"}.issubset(df.columns):
         totals = df[["Confirmed", "Active", "Recovered", "Deaths"]].sum().rename_axis("Status").reset_index(name="Count")
         fig = px.funnel(totals, y="Status", x="Count", color="Status", title="Global Outcome Funnel")
-    st.plotly_chart(fig, config={"responsive": True})
+        st.plotly_chart(fig, config={"responsive": True})
 
 def render_folium_map(df):
     if "Country" not in df.columns or "Confirmed" not in df.columns:
@@ -239,22 +260,19 @@ def render_folium_map(df):
             nan_fill_color="lightgray",
             legend_name="Confirmed Cases",
             name="Choropleth"
-)
-
+        )
         choropleth.add_to(folium_map)
         tooltip = folium.features.GeoJsonTooltip(
             fields=["name", "ISO3", "Confirmed"],
             aliases=["Country", "ISO3", "Confirmed"],
             localize=True,
             sticky=True
-)
-
+        )
         popup = folium.features.GeoJsonPopup(
             fields=["name", "ISO3", "Confirmed"],
             aliases=["Country", "ISO3", "Confirmed"],
             localize=True
-)
-
+        )
         gjson = folium.GeoJson(
             geojson_data,
             name="Country boundaries",
@@ -262,8 +280,7 @@ def render_folium_map(df):
             highlight_function=lambda f: {"weight": 2, "color": "#000", "fillOpacity": 0.1},
             tooltip=tooltip,
             popup=popup
-)
-
+        )
         gjson.add_to(folium_map)
         Search(layer=gjson, search_label="name", geom_type="Polygon", collapsed=False).add_to(folium_map)
         MiniMap(toggle_display=True).add_to(folium_map)
@@ -314,64 +331,102 @@ def render_insight_panels(df):
             st.plotly_chart(fig, config={"responsive": True})
 
 def main():
-    st.set_page_config(page_title="Global COVID-19 Explorer", layout="wide")
-    st.title("Global COVID-19 Explorer")
-    st.caption("Explore interactive analytics powered by Streamlit.")
+    st.set_page_config(page_title="Global COVID-19 Dashboard", layout="wide")
+    st.markdown(
+        """
+        <div style="text-align: center; padding: 1rem 0;">
+            <h1>Global COVID-19 Dashboard</h1>
+            <p style="font-size: 1.1rem;">Interactive analytics powered by Streamlit, Seaborn, Plotly, and Folium</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
     df = load_data()
     df = prepare_data(df)
     datetime_columns = get_datetime_columns(df)
     st.sidebar.header("Filter Controls")
-    countries = sorted(df["Country"].dropna().unique().tolist()) if "Country" in df.columns else []
-    selected_countries = st.sidebar.multiselect("Countries", countries)
-    regions = sorted(df["WHO Region"].dropna().unique().tolist()) if "WHO Region" in df.columns else []
-    selected_regions = st.sidebar.multiselect("WHO Regions", regions)
-    statuses = sorted(df["Vaccination Status"].dropna().unique().tolist()) if "Vaccination Status" in df.columns else []
-    selected_statuses = st.sidebar.multiselect("Vaccination Status", statuses)
-    confirmed_range = numeric_slider(df, "Confirmed cases range", "Confirmed")
-    deaths_range = numeric_slider(df, "Deaths range", "Deaths")
-    recovered_range = numeric_slider(df, "Recovered range", "Recovered")
-    active_range = numeric_slider(df, "Active range", "Active")
-    new_cases_range = numeric_slider(df, "New cases range", "New cases")
-    date_column = None
-    date_range = None
-    if datetime_columns:
-        options = ["None"] + datetime_columns
-        selected_option = st.sidebar.selectbox("Date column", options)
-        if selected_option != "None":
-            date_column = selected_option
-            min_date = df[date_column].min()
-            max_date = df[date_column].max()
-            if min_date == max_date:
-                date_range = (min_date, max_date)
-                st.sidebar.write(f"Date range fixed at {min_date}")
-            else:
-                date_range = st.sidebar.slider("Date range", min_value=min_date, max_value=max_date, value=(min_date, max_date))
-    search_query = st.sidebar.text_input("Search text")
-    sort_column_option = st.sidebar.selectbox("Sort column", ["None"] + df.columns.tolist())
-    sort_column = None if sort_column_option == "None" else sort_column_option
-    sort_order = st.sidebar.radio("Sort order", ["Ascending", "Descending"], index=0)
-    ascending = sort_order == "Ascending"
+    with st.sidebar.expander("Geography Filters", expanded=True):
+        countries = sorted(df["Country"].dropna().unique().tolist()) if "Country" in df.columns else []
+        selected_countries = st.multiselect("Countries", countries)
+        regions = sorted(df["WHO Region"].dropna().unique().tolist()) if "WHO Region" in df.columns else []
+        selected_regions = st.multiselect("WHO Regions", regions)
+    with st.sidebar.expander("Status Filters", expanded=False):
+        statuses = sorted(df["Vaccination Status"].dropna().unique().tolist()) if "Vaccination Status" in df.columns else []
+        selected_statuses = st.multiselect("Vaccination Status", statuses)
+    with st.sidebar.expander("Numeric Ranges", expanded=False):
+        confirmed_range = (0, 0)
+        deaths_range = (0, 0)
+        recovered_range = (0, 0)
+        active_range = (0, 0)
+        new_cases_range = (0, 0)
+
+        if "Confirmed" in df.columns:
+            confirmed_range = numeric_slider(df, "Confirmed cases range", "Confirmed")
+        if "Deaths" in df.columns:
+            deaths_range = numeric_slider(df, "Deaths range", "Deaths")
+        if "Recovered" in df.columns:
+            recovered_range = numeric_slider(df, "Recovered range", "Recovered")
+        if "Active" in df.columns:
+            active_range = numeric_slider(df, "Active range", "Active")
+        if "New cases" in df.columns:
+            new_cases_range = numeric_slider(df, "New cases range", "New cases")
+
+    with st.sidebar.expander("Date & Sorting", expanded=False):
+        date_column, date_range = None, None
+        if datetime_columns:
+            options = ["None"] + datetime_columns
+            selected_option = st.selectbox("Date column", options)
+            if selected_option != "None":
+                date_column = selected_option
+                min_date = df[date_column].min()
+                max_date = df[date_column].max()
+                if min_date == max_date:
+                    date_range = (min_date, max_date)
+                    st.write(f"Date range fixed at {min_date}")
+                else:
+                    date_range = st.slider("Date range", min_value=min_date, max_value=max_date, value=(min_date, max_date))
+        search_query = st.text_input("Search text")
+        sort_column_option = st.selectbox("Sort column", ["None"] + df.columns.tolist())
+        sort_column = None if sort_column_option == "None" else sort_column_option
+        sort_order = st.radio("Sort order", ["Ascending", "Descending"], index=0)
+        ascending = sort_order == "Ascending"
     page_size = st.sidebar.slider("Rows per page", 10, 100, 25, 5)
-    filtered_df = filter_dataframe(df, selected_countries, selected_regions, selected_statuses, confirmed_range, deaths_range, recovered_range, active_range, new_cases_range, search_query, date_column, date_range, sort_column, ascending)
+    filtered_df = filter_dataframe(
+        df, selected_countries, selected_regions, selected_statuses,
+        confirmed_range, deaths_range, recovered_range,
+        active_range, new_cases_range,
+        search_query, date_column, date_range,
+        sort_column, ascending
+    )
     total_pages = max(1, math.ceil(len(filtered_df) / page_size))
     page_number = st.sidebar.number_input("Page number", min_value=1, max_value=total_pages, value=1, step=1)
     st.sidebar.write(f"Total rows: {len(filtered_df)}")
     csv_data = filtered_df.to_csv(index=False).encode("utf-8")
     st.sidebar.download_button("Download filtered data", csv_data, "filtered_covid_data.csv", "text/csv")
-    overview_tab, seaborn_tab, plotly_tab, map_tab, insights_tab = st.tabs(["Overview", "Seaborn and Matplotlib", "Plotly", "Folium Map", "Insights"])
+    overview_tab, seaborn_tab, plotly_tab, map_tab, insights_tab = st.tabs(
+        ["Overview", "Matplotlib & Seaborn", "Plotly", "Folium Map", "Insights"]
+    )
     with overview_tab:
+        st.subheader("Key Global Metrics")
         render_metrics(filtered_df)
-        st.subheader("Filtered Data")
-        render_data_table(filtered_df, page_size, page_number)
-        if {"Country", "Confirmed", "Deaths", "Recovered", "Active"}.issubset(filtered_df.columns):
-            top_overview = filtered_df.nlargest(5, "Confirmed")["Country"].to_list()
-            selection = filtered_df[filtered_df["Country"].isin(top_overview)][["Country", "Confirmed", "Deaths", "Recovered", "Active"]].drop_duplicates("Country").set_index("Country")
-            if not selection.empty:
-                st.subheader("Top Countries by Confirmed Cases")
-                st.dataframe(selection, width='stretch')
+        st.markdown("---")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.subheader("Filtered Data")
+            render_data_table(filtered_df, page_size, page_number)
+        with col2:
+            if {"Country", "Confirmed", "Deaths", "Recovered", "Active"}.issubset(filtered_df.columns):
+                top_overview = filtered_df.nlargest(5, "Confirmed")["Country"].to_list()
+                selection = filtered_df[filtered_df["Country"].isin(top_overview)][
+                    ["Country", "Confirmed", "Deaths", "Recovered", "Active"]
+                ].drop_duplicates("Country").set_index("Country")
+                if not selection.empty:
+                    st.subheader("Top 5 by Confirmed")
+                    st.dataframe(selection, width='stretch')
     with seaborn_tab:
-        st.subheader("Regional Trends and Distributions")
+        st.subheader("Regional Trends & Distributions")
         render_seaborn_plots(filtered_df)
+        st.markdown("---")
         st.subheader("Matplotlib Comparisons")
         render_matplotlib_plots(filtered_df)
     with plotly_tab:
