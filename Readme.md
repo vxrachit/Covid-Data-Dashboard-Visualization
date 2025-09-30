@@ -1,4 +1,4 @@
-# vxrachit — COVID-19 Data Visualization Dashboard
+# vxRachit — COVID-19 Data Visualization Dashboard
 
 Explore global COVID-19 data interactively with vxrachit, a dashboard built using Streamlit, Seaborn, Matplotlib, Plotly, and Folium. Analyze country-level metrics, visualize trends, and interact with maps and charts.
 
