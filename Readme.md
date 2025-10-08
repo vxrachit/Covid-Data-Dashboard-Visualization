@@ -6,9 +6,9 @@ Explore global COVID-19 data interactively with vxrachit, a dashboard built usin
 
 - `app.py`: Main Streamlit application. Loads `country_wise_latest.csv`, provides filtering, visualizations, and a Folium map.
 - `country_wise_latest.csv`: Dataset containing COVID-19 statistics by country.
-- `COVID19_Data_Viz_Assignment_01.ipynb`: Jupyter notebook for data exploration and app generation. Includes Colab setup for running Streamlit via cloudflared.
+- `COVID19_Data_Visualization_Assignment.ipynb`: Jupyter notebook for data exploration and app generation. Includes Colab setup for running Streamlit via cloudflared.
 - `assets/`: Images and resources for documentation and analysis.
-- `collab_preview.pdf`: Preview of the notebook in PDF format.
+- `collab_file.pdf`: Preview of the notebook in PDF format.
 
 ## Useful Links
 
